@@ -84,4 +84,16 @@ router.put("/reset-password", async (req, res) => {
   }
 });
 
+//Get User Data by Email
+router.get("/get-user-data-by-email", async (req, res) => {
+  try {
+    let email = req.headers["email"];
+    let user = await User.findOne({ email: email });
+    res.status(200).json({ message: "User Data Got Successfully", user });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
 export let userRouter = router;
