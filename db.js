@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 export function dbConnection() {
   try {
     mongoose.connect(
-      process.env.momgo_url
+      `${process.env.momgo_url}`
     );
     console.log("Databse Connected Successfully");
   } catch (error) {
