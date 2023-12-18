@@ -4,6 +4,7 @@ let producerSchema = new mongoose.Schema({
   name: {
     type: "string",
     required: true,
+    unique: true,
   },
   gender: {
     type: "string",

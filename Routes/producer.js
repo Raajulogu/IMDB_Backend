@@ -1,6 +1,7 @@
 import express from "express";
 import { User, decodeJwtToken } from "../Models/user.js";
 import { Producer } from "../Models/producer.js";
+import { Movie } from "../Models/movie.js";
 
 let router = express.Router();
 
@@ -13,6 +14,11 @@ router.post("/add-producer", async (req, res) => {
     let user = await User.findById({ _id: userId });
     if (!user)
       return res.status(400).json({ message: "Invalid Authorization" });
+
+    // Check Producer is Already available
+    let movie = await Producer.findOne({ name: req.body.name });
+    if (movie)
+      return res.status(400).json({ message: "Producer Already Available" });
 
     //Adding new Producer to DB
     let newProducer = await new Producer({
@@ -44,9 +50,23 @@ router.get("/get-producer-data-by-id", async (req, res) => {
     let id = req.headers["id"];
     //Get producer by id
     let producer = await Producer.findById({ _id: id });
+
+    //Get Producer's all Movies
+    let movies = await Movie.find();
+    let movie_Data = movies.filter((val) => {
+      if (producer.movies.includes(val._id)) {
+        return val;
+      } else {
+        return false;
+      }
+    });
+    let producer_Data = {
+      producer,
+      movies: movie_Data,
+    };
     res
       .status(200)
-      .json({ message: "Producer Data Got Successfully", producer });
+      .json({ message: "Producer Data Got Successfully", producer_Data });
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: "Internal Server Error" });
