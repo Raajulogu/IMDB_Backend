@@ -23,9 +23,7 @@ let userSchema = new mongoose.Schema({
 
 //Generate JWT token
 let generateJwtToken = (id) => {
-  return jwt.sign({ id }, process.env.SECRET_KEY, "Stack", {
-    expiresIn: "48h",
-  });
+  return jwt.sign({ id }, process.env.SECRET_KEY);
 };
 
 //Decode Jwt Token

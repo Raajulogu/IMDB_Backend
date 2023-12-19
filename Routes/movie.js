@@ -21,6 +21,16 @@ router.post("/add-movie", async (req, res) => {
     if (movie)
       return res.status(400).json({ message: "Movie Already Available" });
 
+    //Check All Actors is available in db
+    let actors = req.body.actors;
+    for (var i = 0; i < actors.length; i++) {
+      let actor = await Actor.findOne({ name: actors[i] });
+      if (!actor)
+        return res.status(200).json({ message: "Actor Not Available" });
+    }
+    let producer = await Producer.findOne({ name: req.body.producer });
+    if (!producer)
+      return res.status(200).json({ message: "Producer Not Available" });
     //Adding new Movie to DB
     let newMovie = await new Movie({
       name: req.body.name,
@@ -30,18 +40,19 @@ router.post("/add-movie", async (req, res) => {
       actors: req.body.actors,
       producer: req.body.producer,
     }).save();
+
     //Function for add movies to actors movie list
-    async function addMovie({ name, movie }) {
-      let actor = await Actor.findOne({ name });
-      let movies = [...actor.movies, movie];
-      await Actor.findOneAndUpdate({ name }, { $set: { movies: movies } });
-    }
-    let actors = req.body.actors;
     for (var i = 0; i < actors.length; i++) {
-      addMovie({ movie: newMovie._id, name: actors[i] });
+      let actor = await Actor.findOne({ name: actors[i] });
+      if (!actor)
+        return res.status(200).json({ message: "Actor Not Available" });
+      let movies = [...actor.movies, newMovie._id];
+      await Actor.findOneAndUpdate(
+        { name: actors[i] },
+        { $set: { movies: movies } }
+      );
     }
     //Add movie in producer movie list
-    let producer = await Producer.findOne({ name: req.body.producer });
     let movies = [...producer.movies, newMovie._id];
     await Producer.findOneAndUpdate(
       { name: req.body.producer },
@@ -69,6 +80,29 @@ router.put("/edit-movie", async (req, res) => {
     // Check Movie is available
     let movie = await Movie.findOne({ _id: movieId });
     if (!movie) return res.status(400).json({ message: "Invalid Movie Id" });
+    //Check Produceris available in DB
+    let producers = await Producer.findOne({ name: req.body.producer });
+    if (!producers)
+      return res.status(200).json({ message: "Producer Not Available" });
+
+    //Check Actors Available in DB
+    let actors = req.body.actors;
+    for (var i = 0; i < actors.length; i++) {
+      let actor = await Actor.findOne({ name: actors[i] });
+      if (!actor) {
+        return res.status(200).json({ message: "Actor Not Available" });
+      }
+    }
+
+    //Function for add movies to actors movie list
+    for (var i = 0; i < actors.length; i++) {
+      let actor = await Actor.findOne({ name: actors[i] });
+      let movies = [...actor.movies, movieId];
+      await Actor.findOneAndUpdate(
+        { name: actors[i] },
+        { $set: { movies: movies } }
+      );
+    }
 
     //Function for remove movies from actors movie list
     async function removeMovie({ name, movie }) {
@@ -87,9 +121,9 @@ router.put("/edit-movie", async (req, res) => {
     }
     let removeactors = movie.actors;
     for (var i = 0; i < removeactors.length; i++) {
-      removeMovie({ movie: newMovie._id, name: actors[i] });
+      removeMovie({ movie: movieId, name: removeactors[i] });
     }
-    //Add movie in producer movie list
+    //Remove movie in producer movie list
     let removeproducer = await Producer.findOne({ name: req.body.producer });
     let removed_movies = removeproducer.movies.filter((val) => {
       if (val !== movieId) {
@@ -102,7 +136,6 @@ router.put("/edit-movie", async (req, res) => {
       { name: req.body.producer },
       { $set: { movies: removed_movies } }
     );
-
     //Editing Movie
     let editMovie = await Movie.findOneAndUpdate(
       { _id: movieId },
@@ -118,16 +151,6 @@ router.put("/edit-movie", async (req, res) => {
       }
     );
 
-    //Function for add movies to actors movie list
-    async function addMovie({ name, movie }) {
-      let actor = await Actor.findOne({ name });
-      let movies = [...actor.movies, movie];
-      await Actor.findOneAndUpdate({ name }, { $set: { movies: movies } });
-    }
-    let actors = req.body.actors;
-    for (var i = 0; i < actors.length; i++) {
-      addMovie({ movie: movieId, name: actors[i] });
-    }
     //Add movie in producer movie list
     let producer = await Producer.findOne({ name: req.body.producer });
     let movies = [...producer.movies, movieId];
@@ -156,7 +179,23 @@ router.get("/get-movie-data-by-id", async (req, res) => {
     let id = req.headers["id"];
     //Get producer by id
     let movie = await Movie.findById({ _id: id });
-    res.status(200).json({ message: "Movie Data Got Successfully", movie });
+
+    //Get Actor's all Movies
+    let actors = await Actor.find();
+    let actor_Data = actors.filter((val) => {
+      if (movie.actors.includes(val.name)) {
+        return val;
+      } else {
+        return false;
+      }
+    });
+    let movie_Data = {
+      movie,
+      actors: actor_Data,
+    };
+    res
+      .status(200)
+      .json({ message: "Movie Data Got Successfully", movie_Data });
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: "Internal Server Error" });
@@ -192,7 +231,7 @@ router.delete("/delete-movie", async (req, res) => {
     if (!user)
       return res.status(400).json({ message: "Invalid Authorization" });
 
-    let movieId = req.body.id;
+    let movieId = req.headers["id"];
     // Check Movie is available
     let movie = await Movie.findOne({ _id: movieId });
     if (!movie) return res.status(400).json({ message: "Invalid Movie Id" });
